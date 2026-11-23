@@ -6,6 +6,10 @@ sections 1-15 of the specification, plus the addendum (A1-A10, phases 6-7).
 **DEMO BY DEFAULT.** `InpLiveTradingEnabled=false`. In paper mode the EA logs
 signals and reason codes but sends no orders.
 
+The FastAPI control center, activation tokens, live MT5 bridge, adaptive AI
+agent, backtest trainer and free hosting options are documented in
+`APP_README.md`.
+
 ---
 
 ## 1. What is implemented

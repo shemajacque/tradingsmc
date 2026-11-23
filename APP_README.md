@@ -140,6 +140,42 @@ Copy-Item .env.example .env
 docker compose up -d --build
 ```
 
+## Free hosting
+
+### Render free web service
+
+The repo includes `render.yaml`. On Render, create a new **Blueprint** from
+`https://github.com/shemajacque/tradingsmc.git`, then set
+`SMC_ADMIN_PASSWORD` when prompted. The free plan gives an HTTPS URL and
+`/health` checks. It sleeps when idle and wakes on the first request.
+
+This is a **Linux** host: it can run the dashboard, token API, EA heartbeats,
+backtests and history, but it cannot see your Windows MT5 terminal. The direct
+**Live account** and **AI Agent** tabs will show "direct MT5 unavailable". For
+those, either keep the local Windows app running or use the tunnel below.
+
+The SQLite file lives in `/tmp` on Render, so tokens/heartbeats reset on
+restart. Use it as a monitoring/activation endpoint, not durable storage.
+
+### Free full-access tunnel (Windows + MT5)
+
+To keep full MT5/agent functionality without paying for a VPS:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run_app.ps1 -Port 8010
+powershell -ExecutionPolicy Bypass -File .\cloudflare_tunnel.ps1 -Port 8010
+```
+
+The tunnel prints an `https://*.trycloudflare.com` URL. Open it, sign in with
+the admin password, and you get the complete app including Live account and AI
+Agent. Your Windows PC must stay on and MT5 must stay logged in. The quick
+tunnel URL changes whenever the script restarts; a named Cloudflare tunnel with
+your own domain gives a stable URL. Set `InpAppUrl` to the HTTPS URL and allow
+that origin in MT5 if you want the EA to report to the tunnel.
+
+Never expose the app without a strong `SMC_ADMIN_PASSWORD`: the admin session
+can place trades when the direct bridge is enabled.
+
 The SQLite database lives in `./data` (mounted at `/data`). Back up that folder.
 Backtest JSON files are baked into the image from `app/data/backtests`; rebuild
 after adding new results (or set `SMC_BACKTEST_DIR` to a mounted folder).

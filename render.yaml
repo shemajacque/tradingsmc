@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: smc-control-center
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r app/requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: SMC_ADMIN_PASSWORD
+        sync: false
+      - key: SMC_DEMO_ONLY
+        value: "1"
+      - key: SMC_COOKIE_SECURE
+        value: "1"
+      - key: SMC_MT5_DIRECT
+        value: "0"
+      - key: SMC_ALLOW_LIVE_TRADING
+        value: "0"
+      - key: SMC_SESSION_HOURS
+        value: "12"
+      - key: SMC_HEARTBEAT_SEC
+        value: "30"
+      - key: SMC_DATA_DIR
+        value: "/tmp/smc-data"
