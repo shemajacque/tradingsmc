@@ -1021,6 +1021,21 @@ def health():
     return {"ok": True, "time": int(now())}
 
 
+@app.get("/manifest.webmanifest")
+def manifest():
+    return FileResponse(APP_DIR / "static" / "manifest.webmanifest",
+                        media_type="application/manifest+json")
+
+
+@app.get("/sw.js")
+def service_worker():
+    return FileResponse(
+        APP_DIR / "static" / "sw.js",
+        media_type="application/javascript",
+        headers={"Service-Worker-Allowed": "/", "Cache-Control": "no-cache"},
+    )
+
+
 @app.get("/")
 def index():
     return FileResponse(APP_DIR / "static" / "index.html")

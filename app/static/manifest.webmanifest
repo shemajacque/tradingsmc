@@ -1,0 +1,43 @@
+{
+  "name": "SMC Control Center",
+  "short_name": "SMC",
+  "description": "MT5 bot activation, live account, AI agent and backtests",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#080f1c",
+  "theme_color": "#22d3ee",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Live account",
+      "short_name": "Live",
+      "url": "/?tab=live"
+    },
+    {
+      "name": "AI Agent",
+      "short_name": "Agent",
+      "url": "/?tab=agent"
+    }
+  ]
+}

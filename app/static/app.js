@@ -6,6 +6,31 @@ let liveTimer = null;
 let liveCurrency = "USD";
 let liveTicks = 0;
 let agentTimer = null;
+let deferredPrompt = null;
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = $("#install-btn");
+  if (btn) btn.classList.remove("hidden");
+});
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+
+const installBtn = $("#install-btn");
+if (installBtn) {
+  installBtn.addEventListener("click", async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    installBtn.classList.add("hidden");
+  });
+}
 
 function esc(v) {
   return String(v ?? "").replace(/[&<>"']/g, c => ({
@@ -930,6 +955,8 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal
   try {
     await api("/api/admin/me");
     showApp();
+    const tab = new URLSearchParams(location.search).get("tab");
+    if (tab && $(`[data-tab="${tab}"]`)) $(`[data-tab="${tab}"]`).click();
     await Promise.all([loadOverview(), loadTokens(), loadBacktests()]);
   } catch (e) {
     showLogin();

@@ -176,6 +176,20 @@ that origin in MT5 if you want the EA to report to the tunnel.
 Never expose the app without a strong `SMC_ADMIN_PASSWORD`: the admin session
 can place trades when the direct bridge is enabled.
 
+## Install on a phone
+
+The dashboard is a PWA. Open the HTTPS URL (Render or the Cloudflare tunnel)
+in your phone browser:
+
+- **Android / Chrome:** menu &rarr; **Install app** or **Add to Home screen**.
+  The **Install** button also appears in the top bar when supported.
+- **iPhone / Safari:** Share &rarr; **Add to Home Screen**.
+
+It installs like an app with its own icon and full-screen layout. The interface
+shell is cached for offline opening, but login, API data, trading and AI Agent
+actions still need a network connection and a reachable backend. Long-press the
+home-screen icon for **Live account** and **AI Agent** shortcuts.
+
 The SQLite database lives in `./data` (mounted at `/data`). Back up that folder.
 Backtest JSON files are baked into the image from `app/data/backtests`; rebuild
 after adding new results (or set `SMC_BACKTEST_DIR` to a mounted folder).

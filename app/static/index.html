@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SMC Control Center</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#22d3ee">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SMC">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<link rel="icon" href="/static/icons/icon-192.png">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -20,6 +27,7 @@
     <input type="password" id="password" autocomplete="current-password" required>
     <button class="btn primary" type="submit">Sign in</button>
     <p class="hint" id="login-msg">The password is set by <code>SMC_ADMIN_PASSWORD</code> on the server.</p>
+    <p class="hint">On a phone, use the browser menu &rarr; <b>Add to Home Screen</b> to install this app.</p>
   </form>
 </div>
 
@@ -42,6 +50,7 @@
     </nav>
     <div class="top-actions">
       <span id="conn-dot" class="dot"></span>
+      <button id="install-btn" class="btn ghost hidden">Install</button>
       <button id="logout" class="btn ghost">Sign out</button>
     </div>
   </header>
