@@ -1,0 +1,16 @@
+services:
+  smc:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8010:8010"
+    environment:
+      SMC_ADMIN_PASSWORD: ${SMC_ADMIN_PASSWORD:?set SMC_ADMIN_PASSWORD in .env}
+      SMC_DEMO_ONLY: ${SMC_DEMO_ONLY:-1}
+      SMC_COOKIE_SECURE: ${SMC_COOKIE_SECURE:-0}
+      SMC_SESSION_HOURS: ${SMC_SESSION_HOURS:-12}
+      SMC_HEARTBEAT_SEC: ${SMC_HEARTBEAT_SEC:-30}
+      SMC_MT5_DIRECT: ${SMC_MT5_DIRECT:-0}
+      SMC_ALLOW_LIVE_TRADING: ${SMC_ALLOW_LIVE_TRADING:-0}
+    volumes:
+      - ./data:/data

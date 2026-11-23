@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+app/data/*.db
+app/data/*.db-*
+app/data/backtests/*.csv
+/data/
+config/account.json

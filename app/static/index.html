@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SMC Control Center</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="login" class="login-wrap">
+  <form class="login-card" id="login-form">
+    <div class="brand">
+      <div class="brand-mark">S</div>
+      <div>
+        <h1>SMC Control Center</h1>
+        <p>Activation and monitoring for your MT5 bot</p>
+      </div>
+    </div>
+    <label>Admin password</label>
+    <input type="password" id="password" autocomplete="current-password" required>
+    <button class="btn primary" type="submit">Sign in</button>
+    <p class="hint" id="login-msg">The password is set by <code>SMC_ADMIN_PASSWORD</code> on the server.</p>
+  </form>
+</div>
+
+<div id="app" class="hidden">
+  <header class="topbar">
+    <div class="brand small">
+      <div class="brand-mark">S</div>
+      <div>
+        <h1>SMC Control Center</h1>
+        <p id="server-mode">Demo-only server</p>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button data-tab="overview" class="tab active">Overview</button>
+      <button data-tab="live" class="tab">Live account</button>
+      <button data-tab="agent" class="tab">AI Agent</button>
+      <button data-tab="tokens" class="tab">Bots &amp; tokens</button>
+      <button data-tab="research" class="tab">Research</button>
+      <button data-tab="setup" class="tab">Setup</button>
+    </nav>
+    <div class="top-actions">
+      <span id="conn-dot" class="dot"></span>
+      <button id="logout" class="btn ghost">Sign out</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="tab-overview" class="tabpane active">
+      <div class="stat-grid">
+        <div class="stat"><span>Bots online</span><strong id="s-online">-</strong><small>heartbeat &lt; 2 min</small></div>
+        <div class="stat"><span>Open positions</span><strong id="s-pos">-</strong><small id="s-pos-note">across all bots</small></div>
+        <div class="stat"><span>Closed profit</span><strong id="s-profit">-</strong><small>reported by EAs</small></div>
+        <div class="stat"><span>Win rate</span><strong id="s-wr">-</strong><small id="s-trades">0 trades</small></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head"><h2>Bots</h2><span class="muted" id="last-update"></span></div>
+          <div id="bots" class="bots"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Activity</h2></div>
+          <div id="events" class="events"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-live" class="tabpane">
+      <div id="live-banner" class="banner warn hidden"></div>
+      <div class="stat-grid">
+        <div class="stat"><span>Balance</span><strong id="l-balance">-</strong><small id="l-account">-</small></div>
+        <div class="stat"><span>Equity</span><strong id="l-equity">-</strong><small id="l-profit">-</small></div>
+        <div class="stat"><span>Free margin</span><strong id="l-free">-</strong><small id="l-margin">-</small></div>
+        <div class="stat"><span>Open positions</span><strong id="l-pos">-</strong><small id="l-orders">-</small></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card chart-card">
+          <div class="card-head"><h2>Equity curve</h2><span class="muted" id="eq-note">30 days</span></div>
+          <div id="equity-chart" class="chart"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Performance</h2><span class="muted" id="an-days">30 days</span></div>
+          <div class="kv-list">
+            <div class="kv"><span>Net P/L</span><b id="an-net">-</b></div>
+            <div class="kv"><span>Trades</span><b id="an-trades">-</b></div>
+            <div class="kv"><span>Win rate</span><b id="an-wr">-</b></div>
+            <div class="kv"><span>Profit factor</span><b id="an-pf">-</b></div>
+            <div class="kv"><span>Avg win</span><b id="an-aw">-</b></div>
+            <div class="kv"><span>Avg loss</span><b id="an-al">-</b></div>
+            <div class="kv"><span>Open risk</span><b id="an-risk">-</b></div>
+            <div class="kv"><span>Risk / equity</span><b id="an-riskpct">-</b></div>
+          </div>
+          <div id="exposure" class="exposure"></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head"><h2>Account</h2><span id="l-mode" class="pill idle">-</span></div>
+          <div id="l-details" class="kv-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Manual order</h2><span class="muted">demo-safe</span></div>
+          <form id="order-form" class="form-grid">
+            <div><label>Symbol</label><input name="symbol" value="GBPUSD" required maxlength="32"></div>
+            <div><label>Side</label><select name="side"><option value="buy">Buy</option><option value="sell">Sell</option></select></div>
+            <div><label>Volume (lots)</label><input name="volume" type="number" step="0.01" min="0.01" value="0.01" required></div>
+            <div><label>SL price (0 = none)</label><input name="sl" type="number" step="any" value="0"></div>
+            <div><label>TP price (0 = none)</label><input name="tp" type="number" step="any" value="0"></div>
+            <div class="full calc-tools">
+              <div><label>Risk %</label><input name="risk_pct" type="number" step="0.1" min="0.1" max="10" value="0.5"></div>
+              <button class="btn" type="button" id="calc-lot">Size by risk</button>
+            </div>
+            <p class="full hint" id="calc-out">Enter an SL, then size the lot from your risk budget.</p>
+            <div class="full"><button class="btn primary" type="submit">Place order</button></div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Open positions</h2>
+          <div class="actions">
+            <button class="btn sm danger" id="close-all">Close all</button>
+            <button class="btn sm" id="live-refresh">Refresh</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Ticket</th><th>Symbol</th><th>Side</th><th>Lots</th><th>Open</th><th>Current</th><th>SL</th><th>TP</th><th>P/L</th><th>Risk</th><th>R:R</th><th></th></tr></thead>
+            <tbody id="live-pos-rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Pending orders</h2></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Ticket</th><th>Symbol</th><th>Type</th><th>Lots</th><th>Price</th><th>SL</th><th>TP</th><th>Comment</th></tr></thead>
+            <tbody id="live-order-rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Recent deals</h2><span class="muted">last 7 days</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Time</th><th>Symbol</th><th>Type</th><th>Entry</th><th>Lots</th><th>Price</th><th>Profit</th><th>Comment</th></tr></thead>
+            <tbody id="live-deal-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-agent" class="tabpane">
+      <div id="agent-gate" class="banner warn hidden"></div>
+      <div id="agent-paper-banner" class="banner warn hidden"></div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head"><h2>Autonomous agent</h2><span id="agent-status" class="pill idle">STOPPED</span></div>
+          <p class="muted">Signal engine (SMC structure) &rarr; adaptive scoring brain &rarr; risk gates &rarr; MT5 execution &rarr; outcome feedback.</p>
+          <div class="kv-list">
+            <div class="kv"><span>Mode</span><b id="ag-mode">-</b></div>
+            <div class="kv"><span>Last tick</span><b id="ag-tick">-</b></div>
+            <div class="kv"><span>Last error</span><b id="ag-error">-</b></div>
+            <div class="kv"><span>Account</span><b id="ag-account">-</b></div>
+          </div>
+          <div class="agent-actions">
+            <label class="check"><input type="checkbox" id="ag-paper"><span>Paper mode (signals only, no orders)</span></label>
+          </div>
+          <div class="agent-actions">
+            <button class="btn primary" id="ag-start">Start agent</button>
+            <button class="btn danger" id="ag-stop">Stop</button>
+            <button class="btn" id="ag-scan">Scan once</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Agent config</h2><button class="btn sm" id="ag-save">Save</button></div>
+          <form id="agent-form" class="form-grid">
+            <div class="full"><label>Symbols (comma separated)</label><input name="symbols" value="GBPUSD,EURUSD,XAUUSD"></div>
+            <div><label>Signal TF</label><select name="timeframe"><option>H1</option><option>M15</option><option>M30</option><option>H4</option></select></div>
+            <div><label>HTF</label><select name="htf"><option>H4</option><option>H1</option><option>D1</option></select></div>
+            <div><label>Risk % / trade</label><input name="risk_pct" type="number" step="0.05" min="0.01" max="5" value="1"></div>
+            <div><label>SL buffer (ATR)</label><input name="sl_buffer_atr" type="number" step="0.05" min="0" max="2" value="0.2"></div>
+            <div><label>Max SL (ATR)</label><input name="sl_max_atr" type="number" step="0.1" min="0.5" max="10" value="2"></div>
+            <div><label>Min R:R</label><input name="min_rr" type="number" step="0.1" min="0.5" max="20" value="1.5"></div>
+            <div><label>Min score</label><input name="min_score" type="number" step="0.01" min="0" max="1" value="0.66"></div>
+            <div><label>Max trades / day</label><input name="max_trades_day" type="number" min="0" max="50" value="3"></div>
+            <div><label>Max open</label><input name="max_open" type="number" min="1" max="20" value="3"></div>
+            <div><label>Interval sec</label><input name="interval_sec" type="number" min="5" max="300" value="15"></div>
+            <div><label>Max spread pt</label><input name="max_spread_points" type="number" min="0" max="500" value="35"></div>
+            <div><label>Max daily loss %</label><input name="max_daily_loss_pct" type="number" step="0.1" min="0.1" max="20" value="1"></div>
+            <div><label>Session</label><select name="session"><option value="any">Any</option><option value="london">London</option><option value="newyork">New York</option><option value="asia">Asia</option></select></div>
+            <div class="full check"><input type="checkbox" name="scanner_mode"><span>Scanner mode: scan a symbol universe and rank the best setups</span></div>
+            <div><label>Scan symbols</label><input name="scan_universe" value="EURUSD,GBPUSD,USDJPY,AUDUSD,USDCAD,XAUUSD"></div>
+            <div><label>Scan bars</label><input name="scan_bars" type="number" min="50" max="1000" value="200"></div>
+            <div><label>Max scanner takes</label><input name="max_scan_take" type="number" min="1" max="10" value="2"></div>
+            <div class="full"><button class="btn sm" type="button" id="ag-load-symbols">Load top MT5 symbols</button></div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Train until profitable</h2><span id="ag-train-status" class="pill idle">IDLE</span></div>
+        <p class="muted">Runs the scanner on demo with relaxed gates and 0.5% risk, learns from every closed trade, and stops once net P/L is positive after the target number of trades. It stops at the trade/time cap if the target is not met.</p>
+        <div class="kv-list">
+          <div class="kv"><span>Closed trades</span><b id="ag-train-closed">-</b></div>
+          <div class="kv"><span>Net P/L</span><b id="ag-train-net">-</b></div>
+          <div class="kv"><span>Target</span><b id="ag-train-target">10 profitable trades</b></div>
+          <div class="kv"><span>Result</span><b id="ag-train-result">-</b></div>
+          <div class="kv"><span>Previous runs</span><b id="ag-train-runs">-</b></div>
+          <div class="kv"><span>Backtest test net</span><b id="ag-bt-net">-</b></div>
+          <div class="kv"><span>Backtest PF / trades</span><b id="ag-bt-pf">-</b></div>
+          <div class="kv"><span>Weights applied</span><b id="ag-bt-applied">-</b></div>
+        </div>
+        <div class="agent-actions">
+          <button class="btn primary" id="ag-train">Start training</button>
+          <button class="btn" id="ag-backtest">Backtest &amp; train</button>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat"><span>Signals scanned</span><strong id="ag-signals">-</strong><small>last 500 stored</small></div>
+        <div class="stat"><span>Orders taken</span><strong id="ag-taken">-</strong><small>agent magic only</small></div>
+        <div class="stat"><span>Wins / losses</span><strong id="ag-wl">-</strong><small id="ag-updates">0 brain updates</small></div>
+        <div class="stat"><span>Agent net</span><strong id="ag-net">-</strong><small>learned outcome</small></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Brain weights</h2><span class="muted">updated from closed trades</span></div>
+        <div id="ag-brain" class="exposure"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Recent signals</h2><button class="btn sm" id="ag-refresh">Refresh</button></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Score</th><th>RR</th><th>Entry</th><th>SL</th><th>TP</th><th>Decision</th><th>Reason</th><th></th></tr></thead>
+            <tbody id="ag-signal-rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Agent actions</h2></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Time</th><th>Kind</th><th>Ticket</th><th>Symbol</th><th>Detail</th><th>Result</th></tr></thead>
+            <tbody id="ag-action-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-tokens" class="tabpane">
+      <div class="card">
+        <div class="card-head">
+          <h2>Activation tokens</h2>
+          <button class="btn primary" id="new-token">New token</button>
+        </div>
+        <p class="muted">Each token is shown once. Put it together with your app URL into the EA inputs.</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Label</th><th>Account</th><th>Risk</th><th>Symbols</th><th>Status</th><th>Last seen</th><th></th></tr>
+            </thead>
+            <tbody id="token-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-research" class="tabpane">
+      <div id="gate" class="banner warn hidden"></div>
+      <div class="card">
+        <div class="card-head"><h2>Backtest results</h2><span class="muted">reference engine, M15 2024-2026</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Symbol</th><th>TF</th><th>Stops</th><th>Trades</th><th>Win rate</th><th>Avg R</th><th>PF</th><th>Max DD</th><th>Return</th></tr></thead>
+            <tbody id="bt-rows"></tbody>
+          </table>
+        </div>
+        <p class="muted" id="bt-note"></p>
+      </div>
+    </section>
+
+    <section id="tab-setup" class="tabpane">
+      <div class="grid-2">
+        <div class="card">
+          <h2>1. Host this app</h2>
+          <ol class="steps">
+            <li>Deploy with Docker: <code>docker compose up -d</code>.</li>
+            <li>Set <code>SMC_ADMIN_PASSWORD</code> to a long random value.</li>
+            <li>Put it behind HTTPS (Caddy, nginx, Render, Railway, Fly.io).</li>
+            <li>Keep <code>SMC_DEMO_ONLY=1</code> until a setup is validated.</li>
+          </ol>
+        </div>
+        <div class="card">
+          <h2>2. Create a token</h2>
+          <ol class="steps">
+            <li>Open <b>Bots &amp; tokens</b>, click <b>New token</b>.</li>
+            <li>Choose the account login/server it is for.</li>
+            <li>Copy the token immediately; it is stored hashed.</li>
+          </ol>
+        </div>
+        <div class="card">
+          <h2>3. Load the EA in MT5</h2>
+          <ol class="steps">
+            <li>Attach <code>SMC_Link</code> to a chart on the demo account.</li>
+            <li><code>InpAppUrl</code> = your app URL, e.g. <code>https://bot.example.com</code>.</li>
+            <li><code>InpToken</code> = the token from step 2.</li>
+            <li>Enable <b>Tools &gt; Options &gt; Expert Advisors &gt; Allow WebRequest</b>, add the exact app origin and press Ok.</li>
+            <li>Use HTTPS on port 443. MT5 WebRequest ignores custom ports such as <code>:8010</code>.</li>
+            <li>The bot card here turns online and shows the account snapshot.</li>
+          </ol>
+        </div>
+        <div class="card">
+          <h2>4. Local live account</h2>
+          <p class="muted">Run this app on the same Windows machine as MT5 to unlock the <b>Live account</b> tab. It reads balance, positions, orders and history directly from the terminal, with an equity curve, 30-day performance, exposure, SL risk / R:R, risk-based lot sizing, partial close, break-even and close-all actions. Real-account manual orders require <code>SMC_ALLOW_LIVE_TRADING=1</code>. On Docker/Linux, use the EA heartbeat instead.</p>
+        </div>
+        <div class="card">
+          <h2>5. Bot execution</h2>
+          <p class="muted">The link EA validates the token, heartbeats and reports the account. Automated execution is enabled only after the strategy passes the research gate shown in the Research tab. This prevents activating a negative-expectancy setup.</p>
+        </div>
+        <div class="card">
+          <h2>6. AI agent</h2>
+          <p class="muted">Open the <b>AI Agent</b> tab to run the SMC signal engine with an adaptive scoring brain, risk gates and MT5 execution. Start in <b>Paper</b> mode first: it logs signals without placing orders. Uncheck paper only when you want demo execution. Real accounts stay locked until the research gate passes and <code>SMC_ALLOW_LIVE_TRADING=1</code>.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="modal" class="modal hidden">
+  <div class="modal-card">
+    <button class="modal-x" id="modal-x">&times;</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
