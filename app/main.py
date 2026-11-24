@@ -62,6 +62,33 @@ ALLOW_LIVE_TRADING = os.environ.get("SMC_ALLOW_LIVE_TRADING", "0") == "1"
 app = FastAPI(title="SMC Control Center", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
 
+
+@app.on_event("startup")
+def start_background_scanner() -> None:
+    state = agent.get_state()
+    cfg = state["config"]
+    changed = False
+    if not cfg.get("scanner_mode"):
+        cfg["scanner_mode"] = True
+        changed = True
+    if cfg.get("training_mode"):
+        cfg["training_mode"] = False
+        changed = True
+    if changed:
+        agent._save(config=cfg)
+    if not DIRECT_ENABLED or not cfg.get("auto_scan", True):
+        return
+    try:
+        direct.account()
+    except Exception:
+        return
+    agent.runtime.start(paper=bool(cfg.get("auto_scan_paper", True)))
+
+
+@app.on_event("shutdown")
+def stop_background_scanner() -> None:
+    agent.runtime.stop()
+
 _attempts: dict = defaultdict(list)
 
 
@@ -719,6 +746,8 @@ class AgentConfigIn(BaseModel):
     session: Optional[str] = None
     magic: Optional[int] = Field(default=None, ge=1, le=999999999)
     scanner_mode: Optional[bool] = None
+    auto_scan: Optional[bool] = None
+    auto_scan_paper: Optional[bool] = None
     training_mode: Optional[bool] = None
     scan_universe: Optional[List[str]] = None
     scan_bars: Optional[int] = Field(default=None, ge=50, le=1000)

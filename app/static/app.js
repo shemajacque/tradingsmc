@@ -581,7 +581,7 @@ async function loadAgent() {
   const st = d.state;
   const cfg = st.config;
   const status = $("#agent-status");
-  status.textContent = st.running ? "RUNNING" : "STOPPED";
+  status.textContent = st.running ? (st.paper ? "SCANNING" : "RUNNING") : "STOPPED";
   status.className = "pill " + (st.running ? "ok" : "idle");
   const paperBanner = $("#agent-paper-banner");
   if (st.paper) {
@@ -661,6 +661,8 @@ async function loadAgent() {
     form.elements.max_daily_loss_pct.value = cfg.max_daily_loss_pct;
     form.elements.session.value = cfg.session;
     form.elements.scanner_mode.checked = !!cfg.scanner_mode;
+    form.elements.auto_scan.checked = cfg.auto_scan !== false;
+    form.elements.auto_scan_paper.checked = cfg.auto_scan_paper !== false;
     form.elements.scan_universe.value = (cfg.scan_universe || []).join(",");
     form.elements.scan_bars.value = cfg.scan_bars ?? 200;
     form.elements.max_scan_take.value = cfg.max_scan_take ?? 2;
@@ -764,6 +766,8 @@ $("#ag-save").addEventListener("click", async () => {
     max_daily_loss_pct: Number(f.elements.max_daily_loss_pct.value),
     session: f.elements.session.value,
     scanner_mode: f.elements.scanner_mode.checked,
+    auto_scan: f.elements.auto_scan.checked,
+    auto_scan_paper: f.elements.auto_scan_paper.checked,
     scan_universe: String(f.elements.scan_universe.value).split(",").map(s => s.trim()).filter(Boolean),
     scan_bars: Number(f.elements.scan_bars.value),
     max_scan_take: Number(f.elements.max_scan_take.value),

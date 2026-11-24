@@ -132,6 +132,13 @@ future results. Endpoints: `POST /api/admin/agent/backtest`,
 The agent's demo stats and brain weights are stored in the SQLite database.
 `Scan once` runs one cycle even while stopped.
 
+**Always scan market** is enabled by default: when the app starts and the local
+MT5 bridge is available, it automatically starts the scanner in paper mode
+(`auto_scan` / `auto_scan_paper`). It continuously scans the configured symbol
+universe and logs signals without placing orders. The status shows `SCANNING`.
+To trade, uncheck paper mode and press **Start agent**; real-account rules still
+apply. Automatic scanning stops when the app shuts down and restarts with it.
+
 ## Docker
 
 ```powershell
