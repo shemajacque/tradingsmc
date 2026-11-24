@@ -86,10 +86,6 @@ def start_background_scanner() -> None:
         agent._save(config=cfg)
     if not DIRECT_ENABLED or not cfg.get("auto_scan", True):
         return
-    try:
-        direct.account()
-    except Exception:
-        return
     agent.runtime.start(paper=bool(cfg.get("auto_scan_paper", True)))
 
 
