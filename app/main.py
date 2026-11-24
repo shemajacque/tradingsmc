@@ -66,6 +66,14 @@ app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
 @app.on_event("startup")
 def start_background_scanner() -> None:
     state = agent.get_state()
+    training = state["stats"].get("training") or {}
+    if training.get("status") == "running":
+        training["status"] = "done"
+        training["result"] = "interrupted by restart"
+        training["ended"] = now()
+        stats = dict(state["stats"])
+        stats["training"] = training
+        agent._save(stats=stats)
     cfg = state["config"]
     changed = False
     if not cfg.get("scanner_mode"):

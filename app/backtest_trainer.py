@@ -211,6 +211,8 @@ def run(epochs: int = 40, limit: int = 1500,
     else:
         report["applied"] = False
     state = agent.get_state()
-    state["stats"]["backtest"] = report
-    agent._save(stats=state["stats"])
+    existing = state["stats"].get("backtest")
+    if (report.get("profitable") and apply) or not existing:
+        state["stats"]["backtest"] = report
+        agent._save(stats=state["stats"])
     return report

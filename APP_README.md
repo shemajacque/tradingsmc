@@ -126,7 +126,9 @@ records synthetic signals and their forward outcomes, trains the brain on the
 first 70% of trades and validates on the last 30%. If the validation set is
 profitable (positive net R and PF ≥ 1.0), the learned weights are applied. This
 is in-sample training with out-of-sample validation; it does not guarantee
-future results. Endpoints: `POST /api/admin/agent/backtest`,
+future results. Only a profitable applied run overwrites the saved backtest
+panel, and a training thread interrupted by a restart is marked as such on the
+next launch. Endpoints: `POST /api/admin/agent/backtest`,
 `GET /api/admin/agent/backtest`.
 
 The agent's demo stats and brain weights are stored in the SQLite database.

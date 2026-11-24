@@ -442,9 +442,8 @@ def _tick(force: bool = False) -> None:
             _safety_stop(cfg, stats, "live account blocked; SMC_ALLOW_LIVE_TRADING=0")
             return
         if not acc.get("trade_allowed"):
-            _log_action("WARN", None, "", "trade_allowed=false", "skipping tick")
-            _save(stats=stats)
-            return
+            _log_action("WARN", None, "", "trade_allowed=false",
+                        "continuing; order_send will validate")
 
         _learn(brain, cfg, stats)
         _manage_open(cfg)
@@ -693,6 +692,8 @@ def _training_loop(target_trades: int, max_trades: int, timeout_min: int) -> Non
     _save(stats=live_stats)
     _log_action("TRAIN", None, "", "training finished",
                 f"{training['result']} closed={training['closed']} net={training['net']:.2f}")
+    if backup.get("auto_scan", True):
+        runtime.start(paper=bool(backup.get("auto_scan_paper", True)))
 
 
 def start_training(target_trades: int = 10, max_trades: int = 60,
