@@ -141,6 +141,12 @@ universe and logs signals without placing orders. The status shows `SCANNING`.
 To trade, uncheck paper mode and press **Start agent**; real-account rules still
 apply. Automatic scanning stops when the app shuts down and restarts with it.
 
+The scanner runs in a separate process (`app/agent_worker.py`) because the
+MT5 Python extension can block the web server. The worker writes a cached
+account/position snapshot into the database; the dashboard and `/api/admin/agent`
+read that cache, so polling stays responsive while MT5 is busy. Explicit Live
+account actions still query MT5 directly.
+
 ## Docker
 
 ```powershell

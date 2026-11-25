@@ -86,7 +86,8 @@ def start_background_scanner() -> None:
         agent._save(config=cfg)
     if not DIRECT_ENABLED or not cfg.get("auto_scan", True):
         return
-    agent.runtime.start(paper=bool(cfg.get("auto_scan_paper", True)))
+    agent.runtime.start(paper=bool(cfg.get("auto_scan_paper", True)),
+                       delay_sec=2.0)
 
 
 @app.on_event("shutdown")
@@ -433,19 +434,19 @@ def overview(_: sqlite3.Row = Depends(require_admin)):
     trade_n = int(stats["n"] or 0)
     wins = int(stats["wins"] or 0)
 
-    live = {"available": False,
-            "reason": "direct MT5 bridge disabled" if not DIRECT_ENABLED else "unknown"}
-    if DIRECT_ENABLED:
-        try:
-            snap = direct.summary()
-            live = {
-                "available": True,
-                "account": snap["account"],
-                "position_count": snap["position_count"],
-                "order_count": snap["order_count"],
-            }
-        except Exception as exc:
-            live = {"available": False, "reason": str(exc)}
+    cached = agent.get_state()["stats"]
+    cached_account = cached.get("account_cache")
+    if not DIRECT_ENABLED:
+        live = {"available": False, "reason": "direct MT5 bridge disabled"}
+    elif cached_account:
+        live = {
+            "available": True,
+            "account": cached_account,
+            "position_count": cached.get("position_cache", 0),
+            "order_count": 0,
+        }
+    else:
+        live = {"available": False, "reason": "no cached MT5 data"}
 
     return {
         "tokens": out,
@@ -780,13 +781,14 @@ def agent_account() -> tuple[Optional[dict], Optional[str]]:
 
 @app.get("/api/admin/agent")
 def agent_status(_: sqlite3.Row = Depends(require_admin)):
-    acc, reason = agent_account()
+    state = agent.get_state()
+    acc = state["stats"].get("account_cache") or None
     return {
-        "state": agent.get_state(),
+        "state": state,
         "research_gate": research_gate_passed(),
         "allow_live": ALLOW_LIVE_TRADING,
         "account": acc,
-        "reason": reason,
+        "reason": None if acc else "no cached MT5 data",
     }
 
 
@@ -794,10 +796,8 @@ def agent_status(_: sqlite3.Row = Depends(require_admin)):
 def agent_start(body: AgentStartIn, _: sqlite3.Row = Depends(require_admin)):
     if not body.confirm:
         raise HTTPException(400, "confirmation required")
-    acc, reason = agent_account()
-    if acc is None:
-        raise HTTPException(503, reason or "MT5 unavailable")
-    if not body.paper:
+    acc = agent.get_state()["stats"].get("account_cache") or {}
+    if not body.paper and acc:
         if not acc.get("demo"):
             if not ALLOW_LIVE_TRADING:
                 raise HTTPException(403, "live agent trading is disabled on this server")
@@ -806,7 +806,7 @@ def agent_start(body: AgentStartIn, _: sqlite3.Row = Depends(require_admin)):
         if not acc.get("trade_allowed"):
             raise HTTPException(403, "MT5 trading is disabled")
     result = agent.runtime.start(paper=body.paper)
-    _log_live("info", f"AI agent start paper={body.paper} demo={acc.get('demo')}")
+    _log_live("info", f"AI agent start paper={body.paper} demo={acc.get('demo', 'unknown')}")
     return result
 
 
@@ -870,10 +870,8 @@ def agent_train(body: AgentTrainIn, _: sqlite3.Row = Depends(require_admin)):
         raise HTTPException(400, "confirmation required")
     if body.max_trades < body.target_trades:
         raise HTTPException(400, "max_trades must be >= target_trades")
-    acc, reason = agent_account()
-    if acc is None:
-        raise HTTPException(503, reason or "MT5 unavailable")
-    if not acc.get("demo"):
+    acc = agent.get_state()["stats"].get("account_cache") or {}
+    if acc and not acc.get("demo"):
         raise HTTPException(403, "training is demo-only")
     return agent.start_training(body.target_trades, body.max_trades,
                                 body.timeout_min)

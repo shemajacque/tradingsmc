@@ -12,6 +12,7 @@ import json
 import math
 import os
 import sqlite3
+import subprocess
 import sys
 import threading
 import time
@@ -79,7 +80,8 @@ DEFAULT_BRAIN = {
 
 DEFAULT_STATS = {"signals": 0, "taken": 0, "wins": 0, "losses": 0,
                  "net": 0.0, "last_tick": 0, "last_error": "",
-                 "training": {}, "training_runs": []}
+                 "training": {}, "training_runs": [],
+                 "account_cache": {}, "position_cache": 0}
 
 
 def _db() -> sqlite3.Connection:
@@ -100,7 +102,8 @@ def init_agent_db() -> None:
                 config TEXT NOT NULL,
                 brain TEXT NOT NULL,
                 stats TEXT NOT NULL,
-                started REAL
+                started REAL,
+                worker_pid INTEGER
             );
             CREATE TABLE IF NOT EXISTS agent_signals (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -134,6 +137,9 @@ def init_agent_db() -> None:
             );
             """
         )
+        cols = {r[1] for r in con.execute("PRAGMA table_info(agent_state)")}
+        if "worker_pid" not in cols:
+            con.execute("ALTER TABLE agent_state ADD COLUMN worker_pid INTEGER")
         con.execute(
             "INSERT OR IGNORE INTO agent_state(id, running, paper, config, brain, stats) "
             "VALUES(1, 0, 0, ?, ?, ?)",
@@ -161,16 +167,18 @@ def get_state() -> dict:
         "brain": json.loads(row["brain"]),
         "stats": json.loads(row["stats"]),
         "started": row["started"],
+        "worker_pid": row["worker_pid"],
     }
 
 
 def _save(running: Optional[bool] = None, paper: Optional[bool] = None,
           config: Optional[dict] = None, brain: Optional[dict] = None,
-          stats: Optional[dict] = None, started: Optional[float] = None) -> None:
+          stats: Optional[dict] = None, started: Optional[float] = None,
+          worker_pid: Optional[int] = None) -> None:
     sets, vals = [], []
     for col, value in (("running", running), ("paper", paper),
                        ("config", config), ("brain", brain), ("stats", stats),
-                       ("started", started)):
+                       ("started", started), ("worker_pid", worker_pid)):
         if value is None:
             continue
         sets.append(f"{col}=?")
@@ -438,6 +446,7 @@ def _tick(force: bool = False) -> None:
     stats["last_tick"] = time.time()
     try:
         acc = direct.account()
+        stats["account_cache"] = acc
         if not acc.get("demo") and not ALLOW_LIVE:
             _safety_stop(cfg, stats, "live account blocked; SMC_ALLOW_LIVE_TRADING=0")
             return
@@ -459,7 +468,9 @@ def _tick(force: bool = False) -> None:
         if day_net <= -max_loss:
             _safety_stop(cfg, stats, f"daily loss limit hit ({day_net:.2f})")
             return
-        open_agents = [p for p in direct.positions()
+        all_positions = direct.positions()
+        stats["position_cache"] = len(all_positions)
+        open_agents = [p for p in all_positions
                        if int(p.get("magic", 0)) == magic]
         if len(open_agents) >= int(cfg["max_open"]):
             _save(brain=brain, stats=stats)
@@ -548,46 +559,63 @@ def _tick(force: bool = False) -> None:
     _save(brain=brain, stats=stats)
 
 
+def _pid_alive(pid: Optional[int]) -> bool:
+    if not pid:
+        return False
+    try:
+        os.kill(int(pid), 0)
+        return True
+    except Exception:
+        return False
+
+
 class AgentRuntime:
     def __init__(self) -> None:
-        self._stop = threading.Event()
-        self._thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
 
-    def start(self, paper: bool = True) -> dict:
+    @staticmethod
+    def _kill(pid: Optional[int]) -> None:
+        if not pid:
+            return
+        try:
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/PID", str(pid), "/F", "/T"],
+                               stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL, timeout=8)
+            else:
+                os.kill(int(pid), 15)
+        except Exception:
+            pass
+
+    def start(self, paper: bool = True, delay_sec: float = 0.0) -> dict:
         with self._lock:
             state = get_state()
-            if state["running"] and self._thread and self._thread.is_alive():
+            if state["running"] and _pid_alive(state["worker_pid"]):
                 return {"ok": True, "already": True}
-            self._stop.clear()
-            _save(running=True, paper=paper, started=time.time())
-            self._thread = threading.Thread(target=self._loop, daemon=True,
-                                            name="smc-ai-agent")
-            self._thread.start()
-            _event("info", f"AI agent started paper={paper}")
-            return {"ok": True, "already": False}
+            self._kill(state["worker_pid"])
+            _save(running=True, paper=paper, started=time.time(), worker_pid=0)
+            flags = 0
+            if os.name == "nt":
+                flags = getattr(subprocess, "DETACHED_PROCESS", 0) | \
+                    getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+            proc = subprocess.Popen(
+                [sys.executable, "-m", "app.agent_worker"],
+                cwd=str(ROOT), stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                creationflags=flags,
+            )
+            _save(worker_pid=proc.pid)
+            _event("info", f"AI worker started pid={proc.pid} paper={paper}")
+            return {"ok": True, "already": False, "pid": proc.pid}
 
     def stop(self) -> dict:
         with self._lock:
-            self._stop.set()
-            if self._thread and self._thread.is_alive():
-                self._thread.join(timeout=8)
-            self._thread = None
-            _save(running=False)
-            _event("info", "AI agent stopped")
-            return {"ok": True}
-
-    def _loop(self) -> None:
-        while not self._stop.is_set():
-            try:
-                _tick()
-            except Exception as exc:
-                _log_action("ERROR", None, "", "loop", str(exc))
             state = get_state()
-            if not state["running"]:
-                break
-            interval = max(5, min(300, int(state["config"].get("interval_sec", 15))))
-            self._stop.wait(interval)
+            pid = state["worker_pid"]
+            _save(running=False, worker_pid=0)
+            self._kill(pid)
+            _event("info", "AI worker stopped")
+            return {"ok": True}
 
 
 runtime = AgentRuntime()
@@ -604,13 +632,8 @@ def _training_loop(target_trades: int, max_trades: int, timeout_min: int) -> Non
         runs.append(dict(training))
         stats["training_runs"] = runs[-20:]
     backup = dict(state["config"])
-    try:
-        start_equity = float(direct.account()["equity"])
-    except Exception as exc:
-        training = {"status": "done", "result": f"MT5 unavailable: {exc}"}
-        stats["training"] = training
-        _save(stats=stats)
-        return
+    cached = stats.get("account_cache") or {}
+    start_equity = float(cached.get("equity", 0.0))
 
     stats["wins"] = 0
     stats["losses"] = 0
@@ -676,10 +699,7 @@ def _training_loop(target_trades: int, max_trades: int, timeout_min: int) -> Non
             break
     runtime.stop()
     _save(config=backup)
-    try:
-        final_equity = float(direct.account()["equity"])
-    except Exception:
-        final_equity = start_equity
+    final_equity = float(get_state()["stats"].get("account_cache", {}).get("equity", start_equity))
     training["status"] = "done"
     training["ended"] = time.time()
     training["final_net"] = training["net"]
