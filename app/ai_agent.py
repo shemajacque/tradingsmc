@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import random
 import sqlite3
 import subprocess
 import sys
@@ -60,6 +61,7 @@ DEFAULT_CONFIG = {
     "scan_bars": 200,
     "max_scan_take": 2,
     "train_max_hold_sec": 120,
+    "train_explore": 0.5,
 }
 
 DEFAULT_BRAIN = {
@@ -372,9 +374,11 @@ def _build_signal(symbol: str, cfg: dict, brain: dict) -> dict:
         "spread_ok": float(spread_ok),
     }
     score = predict(brain, features)
+    explore = training and random.random() < float(cfg.get("train_explore", 0.5))
     result = {
-        "decision": "TAKE" if score >= float(cfg["min_score"]) and
-        rr >= float(cfg["min_rr"]) and spread_ok and htf_aligned else "SKIP",
+        "decision": "TAKE" if explore or (
+            score >= float(cfg["min_score"]) and
+            rr >= float(cfg["min_rr"]) and spread_ok and htf_aligned) else "SKIP",
         "reason": "", "features": features, "score": score,
         "side": side, "entry": tick, "sl": sl, "tp": tp, "rr": rr,
         "zone": zone, "spread": tick_spread,
@@ -661,15 +665,16 @@ def _training_loop(target_trades: int, max_trades: int, timeout_min: int) -> Non
         "htf": "H1",
         "scan_bars": 150,
         "risk_pct": 0.3,
-        "min_score": 0.35,
-        "min_rr": 0.8,
-        "max_spread_points": 100,
-        "max_trades_day": max_trades,
+        "min_score": 0.1,
+        "min_rr": 0.6,
+        "max_spread_points": 150,
+        "max_trades_day": max(max_trades, 200),
         "max_open": 5,
         "max_scan_take": 8,
         "interval_sec": 5,
-        "max_daily_loss_pct": 3.0,
+        "max_daily_loss_pct": 10.0,
         "train_max_hold_sec": 60,
+        "train_explore": 0.5,
     })
     _save(config=cfg, stats=stats)
     _log_action("TRAIN", None, "", "training started",

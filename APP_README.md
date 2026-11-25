@@ -112,7 +112,9 @@ so increase `Interval sec` if the terminal feels slow.
 
 **Start training** runs a bounded demo-only loop: it temporarily enables the
 scanner on M15, lowers the score/RR gates, uses 0.3% risk and a wider symbol
-set, and exits positions after 60 seconds so outcomes arrive quickly. Each
+set, and exits positions after 60 seconds so outcomes arrive quickly. It uses
+50% random exploration so a losing streak cannot freeze learning, and raises
+daily caps so old deals from previous sessions do not block new trades. Each
 closed trade updates the brain weights. It stops when net P/L is positive after
 at least 10 closed trades, or at 60 trades / 30 minutes, then restores your
 previous config while keeping the learned weights. Profitability is not
